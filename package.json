@@ -1,0 +1,12 @@
+{
+  "name": "roboklocki-cup",
+  "version": "1.0.0",
+  "description": "Dwuosobowa gra piłkarska sieciowa z Firebase",
+  "scripts": {
+    "dev": "npx http-server -p 8000",
+    "build": "echo 'Static site - no build needed'"
+  },
+  "keywords": ["game", "football", "realtime", "firebase"],
+  "author": "Roboklocki Team",
+  "license": "MIT"
+}

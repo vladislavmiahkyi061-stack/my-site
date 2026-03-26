@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roboklocki Cup - Football Game</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 900px;
+            height: 550px;
+            background: linear-gradient(to bottom, #2d6a4f 0%, #1f4d3b 100%);
+            border: 3px solid #feca57;
+            box-shadow: 0 0 20px rgba(254, 202, 87, 0.3);
+            border-radius: 5px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlay */
+        #uiInfo {
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 5;
+            color: white;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+        }
+
+        #timer {
+            font-size: 32px;
+            color: #feca57;
+        }
+
+        #score {
+            font-size: 28px;
+            color: white;
+        }
+
+        .score-team {
+            margin: 0 15px;
+        }
+
+        .team-red {
+            color: #ff6b6b;
+        }
+
+        .team-blue {
+            color: #54a0ff;
+        }
+
+        /* Lobby Screen */
+        #lobby {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 46, 0.98);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 100;
+            border: 3px solid #feca57;
+            min-width: 400px;
+            box-shadow: 0 0 30px rgba(254, 202, 87, 0.4);
+            animation: slideDown 0.4s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translate(-50%, -60%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%);
+                opacity: 1;
+            }
+        }
+
+        #lobby h1 {
+            color: #feca57;
+            font-size: 36px;
+            margin-bottom: 12px;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+        }
+
+        #lobby .subtitle {
+            color: #aaa;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        #lobby input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #444;
+            border-radius: 8px;
+            font-size: 16px;
+            background: #222;
+            color: white;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+
+        #lobby input:focus {
+            outline: none;
+            border-color: #feca57;
+        }
+
+        #lobby button {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-p1 {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+            color: white;
+        }
+
+        .btn-p1:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-p2 {
+            background: linear-gradient(135deg, #54a0ff 0%, #2979e2 100%);
+            color: white;
+        }
+
+        .btn-p2:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(84, 160, 255, 0.4);
+        }
+
+        #status {
+            margin-top: 12px;
+            color: #feca57;
+            font-size: 14px;
+            min-height: 20px;
+        }
+
+        /* Game Over Screen */
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 46, 0.98);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 100;
+            border: 3px solid #feca57;
+            min-width: 400px;
+            display: none;
+            box-shadow: 0 0 30px rgba(254, 202, 87, 0.4);
+        }
+
+        #gameOver h1 {
+            color: #feca57;
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
+        #gameOver .final-score {
+            font-size: 32px;
+            margin: 20px 0;
+            color: white;
+        }
+
+        #gameOver button {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: linear-gradient(135deg, #feca57 0%, #f9b633 100%);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #000;
+            transition: all 0.3s;
+        }
+
+        #gameOver button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(254, 202, 87, 0.4);
+        }
+
+        /* Branding */
+        .branding {
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            font-size: 11px;
+            color: #aaa;
+            text-align: right;
+            pointer-events: none;
+        }
+
+        /* Connection Status */
+        #connectionStatus {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 12px;
+            color: #feca57;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            z-index: 5;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-connected {
+            background: #2ecc71;
+        }
+
+        .status-waiting {
+            background: #f39c12;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="uiInfo">
+            <div id="timer">02:00</div>
+            <div id="score">
+                <span class="score-team team-red">Czerwoni <span id="scoreP1">0</span></span>
+                <span class="score-team">—</span>
+                <span class="score-team team-blue"><span id="scoreP2">0</span> Niebiescy</span>
+            </div>
+        </div>
+
+        <div id="connectionStatus">
+            <span class="status-dot status-waiting"></span>
+            <span id="connectionText">Oczekiwanie...</span>
+        </div>
+
+        <div id="lobby">
+            <img src="assets/logo.png" alt="Roboklocki" style="max-width: 280px; margin-bottom: 20px;">
+            <h1>🏆 ROBOKLOCKI CUP</h1>
+            <p class="subtitle">Piłka Nożna - Dwa Gracze</p>
+            
+            <input type="text" id="roomInput" placeholder="Kod Pokoju (np. WKS)" value="WKS">
+            
+            <button class="btn-p1" id="joinP1">⚫ GRACZ 1 (CZERWONY)</button>
+            <button class="btn-p2" id="joinP2">⚫ GRACZ 2 (NIEBIESKI)</button>
+            
+            <p id="status">Oczekiwanie połączenia...</p>
+        </div>
+
+        <div id="gameOver">
+            <h1>KONIEC MECZU</h1>
+            <div class="final-score">
+                <span class="team-red" id="finalP1">0</span> — <span class="team-blue" id="finalP2">0</span>
+            </div>
+            <p id="whoWon" style="color: #feca57; font-size: 18px; margin: 15px 0;"></p>
+            <button id="playAgain">ZAGRAJ PONOWNIE</button>
+        </div>
+
+        <div class="branding">
+            WKS Śląsk Wrocław<br>Roboklocki © 2026
+        </div>
+    </div>
+
+    <script>
+        // ============ FIREBASE CONFIG ============
+        const firebaseConfig = {
+            apiKey: "AIzaSyCvWghCX3TPSeZu5NT8QHZRNJbU3BMc6hc",
+            authDomain: "football-game-6f1f1.firebaseapp.com",
+            databaseURL: "https://football-game-6f1f1-default-rtdb.europe-west1.firebasedatabase.app/",
+            projectId: "football-game-6f1f1",
+            storageBucket: "football-game-6f1f1.firebasestorage.app",
+            messagingSenderId: "1033726249692",
+            appId: "1:1033726249692:web:4b3d0e8bbb45f673744219",
+            measurementId: "G-KHZBL0TQ3T"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // ============ CANVAS & GAME STATE ============
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 900;
+        canvas.height = 550;
+
+        let gameState = {
+            isGameStarted: false,
+            isFrozen: false,
+            isGameOver: false,
+            roomId: null,
+            playerRole: null,
+            gameTimer: 120,
+            score: { p1: 0, p2: 0 },
+            ballMaster: 'p1',
+            isGoalProcess: false
+        };
+
+        // ============ PHYSICS OBJECTS ============
+        class Ball {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 10;
+                this.vx = 0;
+                this.vy = 0;
+                this.mass = 0.43;
+                this.friction = 0.985;
+                this.bounce = 0.7;
+                this.angularVelocity = 0;
+                this.spin = 0;
+                this.lastSyncTime = Date.now();
+                this.gravity = 0;
+                this.airResistance = 0.88; 
+                this.hasCollided = false;
+            }
+
+            update() {
+                this.vx *= this.airResistance;
+                this.vy *= this.airResistance;
+
+                if (Math.abs(this.spin) > 0) {
+                    this.spin *= 0.99;
+                }
+
+                let speed = Math.sqrt(this.vx ** 2 + this.vy ** 2);
+                const maxBallSpeed = 100; 
+                if (speed > maxBallSpeed) {
+                    const scale = maxBallSpeed / speed;
+                    this.vx *= scale;
+                    this.vy *= scale;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                this.hasCollided = false;
+
+                if (this.y - this.radius < 0) {
+                    this.y = this.radius;
+                    this.vy *= -this.bounce;
+                    this.vy = Math.max(this.vy, 3.5);
+                }
+                if (this.y + this.radius > 550) {
+                    this.y = 550 - this.radius;
+                    this.vy *= -this.bounce * 0.8;
+                    this.vy = Math.min(this.vy, -3.5);
+                }
+
+                // Вертикальные границы поля
+                if (this.x - this.radius < 0) {
+                    this.x = this.radius;
+                    this.vx *= -this.bounce;
+                }
+                if (this.x + this.radius > 900) {
+                    this.x = 900 - this.radius;
+                    this.vx *= -this.bounce;
+                }
+
+                if (Math.abs(this.vx) < 0.15) this.vx = 0;
+                if (Math.abs(this.vy) < 0.15) this.vy = 0;
+            }
+
+            collideWithPlayer(player) {
+                if (this.hasCollided) return false;
+
+                const dx = this.x - player.x;
+                const dy = this.y - player.y;
+                const dist = Math.sqrt(dx ** 2 + dy ** 2);
+                const minDist = this.radius + player.radius;
+
+                if (dist < minDist && dist > 0) {
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+
+                    const dvx = this.vx - player.vx;
+                    const dvy = this.vy - player.vy;
+                    const dvDot = dvx * nx + dvy * ny;
+
+                    if (dvDot < 0) {
+                        const restitution = 0.35;
+                        let impulse = -(1 + restitution) * dvDot / (1 / this.mass + 1 / player.mass);
+                        impulse = Math.min(impulse, 3.5);
+                        
+                        this.vx = this.vx - impulse * (1 / this.mass) * nx * 0.25;
+                        this.vy = this.vy - impulse * (1 / this.mass) * ny * 0.25;
+                        
+                        const escapeVelocity = 4.5; 
+                        const currentOutwardVelocity = (this.vx * nx + this.vy * ny);
+                        if (currentOutwardVelocity < escapeVelocity) {
+                            this.vx = this.vx + (escapeVelocity - currentOutwardVelocity) * nx;
+                            this.vy = this.vy + (escapeVelocity - currentOutwardVelocity) * ny;
+                        }
+                        
+                        player.vx = player.vx + impulse * (1 / player.mass) * nx * 0.08;
+                        player.vy = player.vy + impulse * (1 / player.mass) * ny * 0.08;
+
+                        this.spin = dvDot * 0.002;
+
+                        const overlap = minDist - dist;
+                        const separationFactor = overlap + 2.0; 
+                        this.x += separationFactor * nx;
+                        this.y += separationFactor * ny;
+
+                        this.hasCollided = true;
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#999999';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                if (this.vx !== 0 || this.vy !== 0) {
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        class Player {
+            constructor(x, y, color, role) {
+                this.x = x;
+                this.y = y;
+                this.radius = 18;
+                this.vx = 0;
+                this.vy = 0;
+                this.color = color;
+                this.role = role;
+                this.mass = 5;
+                this.friction = 0.88;
+                this.maxSpeed = 300; 
+            }
+
+            update() {
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+
+                const speed = Math.sqrt(this.vx ** 2 + this.vy ** 2);
+                if (speed > this.maxSpeed) {
+                    const scale = this.maxSpeed / speed;
+                    this.vx *= scale;
+                    this.vy *= scale;
+                }
+
+                this.x += this.vx * (1 / 60);
+                this.y += this.vy * (1 / 60);
+
+                // Границы игрового поля
+                if (this.x - this.radius < 0) this.x = this.radius;
+                if (this.x + this.radius > 900) this.x = 900 - this.radius;
+                if (this.y - this.radius < 0) this.y = this.radius;
+                if (this.y + this.radius > 550) this.y = 550 - this.radius;
+            }
+
+            collideWithPlayer(other) {
+                const dx = this.x - other.x;
+                const dy = this.y - other.y;
+                const dist = Math.sqrt(dx ** 2 + dy ** 2);
+                const minDist = this.radius + other.radius;
+
+                if (dist < minDist && dist > 0) {
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+
+                    const dvx = this.vx - other.vx;
+                    const dvy = this.vy - other.vy;
+                    const dvDot = dvx * nx + dvy * ny;
+
+                    if (dvDot < 0) {
+                        const impulse = (dvDot / (this.mass + other.mass)) * 0.5; 
+                        this.vx -= impulse * other.mass * nx;
+                        this.vy -= impulse * other.mass * ny;
+                        other.vx += impulse * this.mass * nx;
+                        other.vy += impulse * this.mass * ny;
+
+                        const overlap = minDist - dist + 0.1; 
+                        const separation = overlap / 2 + 1;
+                        this.x += separation * nx;
+                        this.y += separation * ny;
+                        other.x -= separation * nx;
+                        other.y -= separation * ny;
+                    }
+                }
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.role === 'p1' ? '1' : '2', this.x, this.y);
+            }
+        }
+
+        let ball = new Ball(450, 275);
+        let p1 = new Player(150, 275, '#ff6b6b', 'p1');
+        let p2 = new Player(750, 275, '#54a0ff', 'p2');
+
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        function handlePlayerInput(player) {
+            const acceleration = 100; 
+            
+            if (keys['arrowleft'] || keys['a']) player.vx -= acceleration;
+            if (keys['arrowright'] || keys['d']) player.vx += acceleration;
+            if (keys['arrowup'] || keys['w']) player.vy -= acceleration;
+            if (keys['arrowdown'] || keys['s']) player.vy += acceleration;
+            
+            const speed = Math.sqrt(player.vx ** 2 + player.vy ** 2);
+            if (speed > player.maxSpeed) {
+                const scale = player.maxSpeed / speed;
+                player.vx *= scale;
+                player.vy *= scale;
+            }
+        }
+
+        function drawField() {
+            ctx.fillStyle = '#2d6a4f';
+            ctx.fillRect(0, 0, 900, 550);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(450, 0);
+            ctx.lineTo(450, 550);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(450, 275, 65, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(450, 275, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Левые ворота - штанги и сетка
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            
+            // Левая вертикальная стойка (внешняя, полная)
+            ctx.beginPath();
+            ctx.moveTo(0, 202);
+            ctx.lineTo(0, 348);
+            ctx.stroke();
+
+            // Верхняя горизонтальная перекладина
+            ctx.beginPath();
+            ctx.moveTo(0, 202);
+            ctx.lineTo(33, 202);
+            ctx.stroke();
+
+            // Правая вертикальная стойка (внутренняя, полная)
+            ctx.beginPath();
+            ctx.moveTo(33, 202);
+            ctx.lineTo(33, 348);
+            ctx.stroke();
+
+            // Нижняя горизонтальная перекладина
+            ctx.beginPath();
+            ctx.moveTo(0, 348);
+            ctx.lineTo(33, 348);
+            ctx.stroke();
+
+            // Белые точки в углах
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(0, 202, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(33, 202, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 348, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(33, 348, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Сетка левых ворот
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1;
+            // Вертикальные линии сетки
+            for (let x = 4; x < 33; x += 5) {
+                ctx.beginPath();
+                ctx.moveTo(x, 202);
+                ctx.lineTo(x, 348);
+                ctx.stroke();
+            }
+            // Горизонтальные линии сетки
+            for (let y = 207; y < 348; y += 5) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(33, y);
+                ctx.stroke();
+            }
+
+            // Правые ворота - штанги и сетка (за полем: x=900 до 933)
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            
+            // Левая вертикальная стойка (на границе поля)
+            ctx.beginPath();
+            ctx.moveTo(867, 202);
+            ctx.lineTo(867, 348);
+            ctx.stroke();
+
+            // Верхняя горизонтальная перекладина
+            ctx.beginPath();
+            ctx.moveTo(867, 202);
+            ctx.lineTo(900, 202);
+            ctx.stroke();
+
+            // Правая вертикальная стойка (внешняя)
+            ctx.beginPath();
+            ctx.moveTo(900, 202);
+            ctx.lineTo(900, 348);
+            ctx.stroke();
+
+            // Нижняя горизонтальная перекладина
+            ctx.beginPath();
+            ctx.moveTo(867, 348);
+            ctx.lineTo(900, 348);
+            ctx.stroke();
+
+            // Белые точки в углах
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(867, 202, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(900, 202, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(867, 348, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(900, 348, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Сетка правых ворот
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1;
+            // Вертикальные линии сетки
+            for (let x = 871; x < 900; x += 5) {
+                ctx.beginPath();
+                ctx.moveTo(x, 202);
+                ctx.lineTo(x, 348);
+                ctx.stroke();
+            }
+            // Горизонтальные линии сетки
+            for (let y = 207; y < 348; y += 5) {
+                ctx.beginPath();
+                ctx.moveTo(867, y);
+                ctx.lineTo(900, y);
+                ctx.stroke();
+            }
+
+            // Граница поля
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(0, 0, 900, 550);
+
+            if (gameState.isGameStarted) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText('ROBOKLOCKI', 10, 540);
+                ctx.fillText('WKS Śląsk', 10, 550);
+            }
+        }
+
+        function checkGoalPostsCollision() {
+            // Левые ворота
+            // Левая внешняя штанга (x=0) - вертикальная стойка
+            if (ball.x - ball.radius < 5 && ball.y > 195 && ball.y < 355) {
+                ball.x = ball.radius + 5;
+                ball.vx = Math.abs(ball.vx) * 0.8;
+            }
+            if (p1.x - p1.radius < 5 && p1.y > 195 && p1.y < 355) {
+                p1.x = p1.radius + 5;
+                p1.vx = Math.max(10, Math.abs(p1.vx));
+            }
+            if (p2.x - p2.radius < 5 && p2.y > 195 && p2.y < 355) {
+                p2.x = p2.radius + 5;
+                p2.vx = Math.max(10, Math.abs(p2.vx));
+            }
+
+            // Правые ворота
+            // Правая внешняя штанга (x=900) - вертикальная стойка
+            if (ball.x + ball.radius > 895 && ball.y > 195 && ball.y < 355) {
+                ball.x = 895 - ball.radius;
+                ball.vx = -Math.abs(ball.vx) * 0.8;
+            }
+            if (p1.x + p1.radius > 895 && p1.y > 195 && p1.y < 355) {
+                p1.x = 895 - p1.radius;
+                p1.vx = -Math.max(10, Math.abs(p1.vx));
+            }
+            if (p2.x + p2.radius > 895 && p2.y > 195 && p2.y < 355) {
+                p2.x = 895 - p2.radius;
+                p2.vx = -Math.max(10, Math.abs(p2.vx));
+            }
+
+            // Левые ворота - верхняя перекладина (y=202)
+            // Мяч
+            if (ball.y - ball.radius < 207 && ball.y > 150 && ball.x >= 0 && ball.x < 35) {
+                ball.y = 207 + ball.radius;
+                ball.vy = Math.max(Math.abs(ball.vy) * 0.8, 3);
+            }
+            // Игрок 1
+            if (p1.y - p1.radius < 207 && p1.y > 150 && p1.x >= 0 && p1.x < 35) {
+                p1.y = 207 + p1.radius;
+                p1.vy = Math.max(Math.abs(p1.vy), 10);
+            }
+            // Игрок 2
+            if (p2.y - p2.radius < 207 && p2.y > 150 && p2.x >= 0 && p2.x < 35) {
+                p2.y = 207 + p2.radius;
+                p2.vy = Math.max(Math.abs(p2.vy), 10);
+            }
+
+            // Левые ворота - нижняя перекладина (y=348)
+            // Мяч
+            if (ball.y + ball.radius > 343 && ball.y < 400 && ball.x >= 0 && ball.x < 35) {
+                ball.y = 343 - ball.radius;
+                ball.vy = -Math.max(Math.abs(ball.vy) * 0.8, 3);
+            }
+            // Игрок 1
+            if (p1.y + p1.radius > 343 && p1.y < 400 && p1.x >= 0 && p1.x < 35) {
+                p1.y = 343 - p1.radius;
+                p1.vy = -Math.max(Math.abs(p1.vy), 10);
+            }
+            // Игрок 2
+            if (p2.y + p2.radius > 343 && p2.y < 400 && p2.x >= 0 && p2.x < 35) {
+                p2.y = 343 - p2.radius;
+                p2.vy = -Math.max(Math.abs(p2.vy), 10);
+            }
+
+            // Правые ворота - верхняя перекладина (y=202)
+            // Мяч
+            if (ball.y - ball.radius < 207 && ball.y > 150 && ball.x > 865 && ball.x <= 900) {
+                ball.y = 207 + ball.radius;
+                ball.vy = Math.max(Math.abs(ball.vy) * 0.8, 3);
+            }
+            // Игрок 1
+            if (p1.y - p1.radius < 207 && p1.y > 150 && p1.x > 865 && p1.x <= 900) {
+                p1.y = 207 + p1.radius;
+                p1.vy = Math.max(Math.abs(p1.vy), 10);
+            }
+            // Игрок 2
+            if (p2.y - p2.radius < 207 && p2.y > 150 && p2.x > 865 && p2.x <= 900) {
+                p2.y = 207 + p2.radius;
+                p2.vy = Math.max(Math.abs(p2.vy), 10);
+            }
+
+            // Правые ворота - нижняя перекладина (y=348)
+            // Мяч
+            if (ball.y + ball.radius > 343 && ball.y < 400 && ball.x > 865 && ball.x <= 900) {
+                ball.y = 343 - ball.radius;
+                ball.vy = -Math.max(Math.abs(ball.vy) * 0.8, 3);
+            }
+            // Игрок 1
+            if (p1.y + p1.radius > 343 && p1.y < 400 && p1.x > 865 && p1.x <= 900) {
+                p1.y = 343 - p1.radius;
+                p1.vy = -Math.max(Math.abs(p1.vy), 10);
+            }
+            // Игрок 2
+            if (p2.y + p2.radius > 343 && p2.y < 400 && p2.x > 865 && p2.x <= 900) {
+                p2.y = 343 - p2.radius;
+                p2.vy = -Math.max(Math.abs(p2.vy), 10);
+            }
+        }
+
+        function checkGoal() {
+            if (ball.x < 0 && ball.y > 202 && ball.y < 348 && !gameState.isFrozen) {
+                gameState.score.p2++;
+                triggerGoal();
+            }
+            else if (ball.x > 900 && ball.y > 202 && ball.y < 348 && !gameState.isFrozen) {
+                gameState.score.p1++;
+                triggerGoal();
+            }
+        }
+
+        function triggerGoal() {
+            gameState.isFrozen = true;
+            gameState.isGoalProcess = true;
+
+            document.getElementById('scoreP1').innerText = gameState.score.p1;
+            document.getElementById('scoreP2').innerText = gameState.score.p2;
+
+            if (gameState.playerRole === 'p1') {
+                database.ref(`rooms/${gameState.roomId}/score`).set(gameState.score);
+            }
+
+            setTimeout(() => {
+                resetPositions();
+                gameState.isFrozen = false;
+                gameState.isGoalProcess = false;
+            }, 2000);
+        }
+
+        function resetPositions() {
+            p1.x = 150; p1.y = 275; p1.vx = 0; p1.vy = 0;
+            p2.x = 750; p2.y = 275; p2.vx = 0; p2.vy = 0;
+            ball.x = 450; ball.y = 275; ball.vx = 0; ball.vy = 0;
+
+            if (gameState.playerRole === 'p1') {
+                database.ref(`rooms/${gameState.roomId}/ball`).set({
+                    x: 450, y: 275, vx: 0, vy: 0, master: 'p1'
+                });
+            }
+        }
+
+        let lastSyncTime = Date.now();
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, 900, 550);
+
+            if (!gameState.isGameStarted || !gameState.playerRole) {
+                drawField();
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            drawField();
+
+            const currentPlayer = gameState.playerRole === 'p1' ? p1 : p2;
+            handlePlayerInput(currentPlayer);
+
+            if (!gameState.isFrozen) {
+                p1.update();
+                p2.update();
+                ball.update();
+
+                for (let i = 0; i < 2; i++) {
+                    p1.collideWithPlayer(p2);
+                    ball.collideWithPlayer(p1);
+                    ball.collideWithPlayer(p2);
+                }
+                checkGoalPostsCollision();
+                checkGoal();
+            }
+
+            p1.draw(ctx);
+            p2.draw(ctx);
+            ball.draw(ctx);
+
+            const now = Date.now();
+            if (now - lastSyncTime > 50) {
+                if (gameState.playerRole === 'p1') {
+                    database.ref(`rooms/${gameState.roomId}/p1`).set({
+                        x: p1.x, y: p1.y, vx: p1.vx, vy: p1.vy
+                    });
+                    database.ref(`rooms/${gameState.roomId}/ball`).set({
+                        x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy
+                    });
+                } else {
+                    database.ref(`rooms/${gameState.roomId}/p2`).set({
+                        x: p2.x, y: p2.y, vx: p2.vx, vy: p2.vy
+                    });
+                }
+                lastSyncTime = now;
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+
+        function join(role) {
+            gameState.playerRole = role;
+            gameState.roomId = document.getElementById('roomInput').value.trim() || 'WKS';
+            const roomRef = database.ref(`rooms/${gameState.roomId}`);
+
+            if (role === 'p1') {
+                roomRef.update({
+                    gameState: 'waiting',
+                    timeLeft: 120,
+                    score: { p1: 0, p2: 0 },
+                    ball: { x: 450, y: 275, vx: 0, vy: 0, master: 'p1' }
+                });
+            }
+
+            roomRef.child(`connections/${role}`).set(true);
+            roomRef.child(`connections/${role}`).onDisconnect().remove();
+
+            roomRef.on('value', (snap) => {
+                const data = snap.val();
+                if (!data) return;
+
+                if (data.connections?.p1 && data.connections?.p2 && !gameState.isGameStarted) {
+                    gameState.isGameStarted = true;
+                    document.getElementById('lobby').style.display = 'none';
+                    document.getElementById('connectionStatus').innerHTML = 
+                        '<span class="status-dot status-connected"></span><span>Połączono</span>';
+                    resetPositions();
+                }
+
+                if (data.score) {
+                    gameState.score = data.score;
+                    document.getElementById('scoreP1').innerText = data.score.p1;
+                    document.getElementById('scoreP2').innerText = data.score.p2;
+                }
+
+                if (data.timeLeft !== undefined) {
+                    gameState.gameTimer = data.timeLeft;
+                    const m = Math.floor(data.timeLeft / 60);
+                    const s = data.timeLeft % 60;
+                    document.getElementById('timer').innerText = 
+                        `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+                    if (data.timeLeft === 0 && !gameState.isGameOver) {
+                        endGame();
+                    }
+                }
+
+                if (!gameState.isFrozen) {
+                    const enemy = gameState.playerRole === 'p1' ? 'p2' : 'p1';
+                    const enemyObj = gameState.playerRole === 'p1' ? p2 : p1;
+                    if (data[enemy]) {
+                        enemyObj.x = data[enemy].x;
+                        enemyObj.y = data[enemy].y;
+                        enemyObj.vx = data[enemy].vx || 0;
+                        enemyObj.vy = data[enemy].vy || 0;
+                    }
+
+                    if (data.ball && gameState.playerRole !== 'p1') {
+                        ball.x = data.ball.x;
+                        ball.y = data.ball.y;
+                        ball.vx = data.ball.vx || 0;
+                        ball.vy = data.ball.vy || 0;
+                    }
+                }
+            });
+
+            document.getElementById('status').innerText = 'Czekanie na drugiego gracza...';
+        }
+
+        function endGame() {
+            gameState.isGameOver = true;
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalP1').innerText = gameState.score.p1;
+            document.getElementById('finalP2').innerText = gameState.score.p2;
+
+            let whoWonText = '';
+            if (gameState.score.p1 > gameState.score.p2) {
+                whoWonText = '🔴 WYGRYWA GRACZ 1 (CZERWONY)';
+            } else if (gameState.score.p2 > gameState.score.p1) {
+                whoWonText = '🔵 WYGRYWA GRACZ 2 (NIEBIESKI)';
+            } else {
+                whoWonText = '⚪ REMIS!';
+            }
+            document.getElementById('whoWon').innerText = whoWonText;
+        }
+
+        document.getElementById('joinP1').onclick = () => join('p1');
+        document.getElementById('joinP2').onclick = () => join('p2');
+        document.getElementById('playAgain').onclick = () => { location.reload(); };
+
+        setInterval(() => {
+            if (gameState.isGameStarted && !gameState.isGameOver && gameState.playerRole === 'p1') {
+                gameState.gameTimer--;
+                database.ref(`rooms/${gameState.roomId}/timeLeft`).set(gameState.gameTimer);
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
