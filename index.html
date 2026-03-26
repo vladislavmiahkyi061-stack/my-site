@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roboklocki® Cup - Football Game</title>
+    <title>Roboklocki Cup - Football Game</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
@@ -40,6 +40,7 @@
             height: 100%;
         }
 
+        /* UI Overlay */
         #uiInfo {
             position: absolute;
             top: 2px;
@@ -89,6 +90,7 @@
             color: #54a0ff;
         }
 
+        /* Lobby Screen */
         #lobby {
             position: absolute;
             top: 50%;
@@ -188,6 +190,7 @@
             min-height: 20px;
         }
 
+        /* Game Over Screen */
         #gameOver {
             position: absolute;
             top: 50%;
@@ -235,6 +238,7 @@
             box-shadow: 0 5px 15px rgba(254, 202, 87, 0.4);
         }
 
+        /* Branding */
         .branding {
             position: absolute;
             bottom: 10px;
@@ -245,6 +249,7 @@
             pointer-events: none;
         }
 
+        /* Connection Status */
         #connectionStatus {
             position: absolute;
             top: 10px;
@@ -303,7 +308,7 @@
                 <img src="assets/logo.png" alt="Roboklocki" style="max-width: 225px;">
                 <img src="assets/logo1.png" alt="Logo 1" style="max-width: 75px;">
             </div>
-            <h1>🏆 ROBOKLOCKI CUP</h1>
+            <h1>🏆 ROBOKLOCKI® CUP</h1>
             <p class="subtitle">Piłka Nożna - Dwaj Gracze</p>
             
             <input type="text" id="roomInput" placeholder="Kod Pokoju (np. WKS)">
@@ -324,7 +329,7 @@
         </div>
 
         <div class="branding">
-            WKS Śląsk Wrocław<br>Roboklocki © 2026
+            WKS Śląsk Wrocław<br>Roboklocki&reg; © 2026
         </div>
     </div>
 
@@ -415,7 +420,6 @@
                     this.vy = Math.min(this.vy, -3.5);
                 }
 
-                // Вертикальные границы поля
                 if (this.x - this.radius < 0) {
                     this.x = this.radius;
                     this.vx *= -this.bounce;
@@ -492,7 +496,6 @@
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                     ctx.clip();
-                    
                     const size = this.radius * 2;
                     ctx.drawImage(ballImage, this.x - this.radius, this.y - this.radius, size, size);
                     ctx.restore();
@@ -539,12 +542,17 @@
                 this.x += this.vx * (1 / 60);
                 this.y += this.vy * (1 / 60);
 
+                // Границы игрового поля
                 if (this.x - this.radius < 0) this.x = this.radius;
                 if (this.x + this.radius > 900) this.x = 900 - this.radius;
+                // Горизонтальные границы (y=50 и y=600) - ОНА срабатывают только от x=33 до x=867
                 if (this.y - this.radius < 50 && this.x > 33 && this.x < 867) this.y = this.radius + 50;
                 if (this.y + this.radius > 600 && this.x > 33 && this.x < 867) this.y = 600 - this.radius;
 
+                // Вертикальные внутренние границы (x=33 и x=867) - ТОЛЬКО вне зоны ворот
+                // Левая линия (x=33): от y=50 до y=252 и от y=398 до y=600
                 if (this.x - this.radius < 33 && (this.y < 252 || this.y > 398)) this.x = this.radius + 33;
+                // Правая линия (x=867): от y=50 до y=252 и от y=398 до y=600
                 if (this.x + this.radius > 867 && (this.y < 252 || this.y > 398)) this.x = 867 - this.radius;
             }
 
@@ -645,77 +653,97 @@
             ctx.arc(450, 325, 4, 0, Math.PI * 2);
             ctx.fill();
 
+            // Внутренние границы (на расстоянии 33 пикселя от края)
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
             
+            // Левая вертикальная линия
             ctx.beginPath();
             ctx.moveTo(33, 50);
             ctx.lineTo(33, 600);
             ctx.stroke();
             
+            // Правая вертикальная линия
             ctx.beginPath();
             ctx.moveTo(867, 50);
             ctx.lineTo(867, 600);
             ctx.stroke();
             
+            // Верхняя горизонтальная линия
             ctx.beginPath();
             ctx.moveTo(33, 50);
             ctx.lineTo(867, 50);
             ctx.stroke();
             
+            // Нижняя горизонтальная линия
             ctx.beginPath();
             ctx.moveTo(33, 600);
             ctx.lineTo(867, 600);
             ctx.stroke();
 
+            // ======== ШТРАФНЫЕ ЗОНЫ (ДВОЙНЫЕ ПРЯМОУГОЛЬНИКИ) ========
+            // Левая большая штрафная зона
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.rect(33, 195, 100, 260);
             ctx.stroke();
 
+            // Левая малая штрафная зона (goal area) - до точки пенальти
             ctx.beginPath();
             ctx.rect(33, 240, 50, 170);
             ctx.stroke();
 
+            // Правая большая штрафная зона
             ctx.beginPath();
             ctx.rect(767, 195, 100, 260);
             ctx.stroke();
 
+            // Правая малая штрафная зона (goal area) - до точки пенальти
             ctx.beginPath();
             ctx.rect(817, 240, 50, 170);
             ctx.stroke();
 
+            // ======== ТОЧКИ ПЕНАЛЬТИ (между зонами на одинаковом расстоянии) ========
+            // Левая точка пенальти
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(108, 325, 3, 0, Math.PI * 2);
             ctx.fill();
 
+            // Правая точка пенальти
             ctx.beginPath();
             ctx.arc(792, 325, 3, 0, Math.PI * 2);
             ctx.fill();
 
+            // ======== ЗАКРУГЛЕННЫЕ ЛИНИИ НА УГЛАХ ========
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
 
+            // Левый верхний угол
             ctx.beginPath();
             ctx.arc(33, 50, 15, 0, Math.PI / 2);
             ctx.stroke();
 
+            // Левый нижний угол
             ctx.beginPath();
             ctx.arc(33, 600, 15, -Math.PI / 2, 0);
             ctx.stroke();
 
+            // Правый верхний угол
             ctx.beginPath();
             ctx.arc(867, 50, 15, Math.PI / 2, Math.PI);
             ctx.stroke();
 
+            // Правый нижний угол
             ctx.beginPath();
             ctx.arc(867, 600, 15, Math.PI, 3 * Math.PI / 2);
             ctx.stroke();
         }
 
         function checkGoalPostsCollision() {
+            // Левые ворота
+            // Левая внешняя штанга (x=0) - вертикальная стойка
             if (ball.x - ball.radius < 5 && ball.y > 245 && ball.y < 405) {
                 ball.x = ball.radius + 5;
                 ball.vx = Math.abs(ball.vx) * 0.8;
@@ -729,6 +757,8 @@
                 p2.vx = Math.max(10, Math.abs(p2.vx));
             }
 
+            // Правые ворота
+            // Правая внешняя штанга (x=900) - вертикальная стойка
             if (ball.x + ball.radius > 895 && ball.y > 245 && ball.y < 405) {
                 ball.x = 895 - ball.radius;
                 ball.vx = -Math.abs(ball.vx) * 0.8;
@@ -742,53 +772,69 @@
                 p2.vx = -Math.max(10, Math.abs(p2.vx));
             }
 
+            // Левые ворота - верхняя перекладина (y=252)
+            // Мяч
             if (ball.y - ball.radius < 257 && ball.y > 200 && ball.x >= 0 && ball.x < 35) {
                 ball.y = 257 + ball.radius;
                 ball.vy = Math.max(Math.abs(ball.vy) * 0.8, 3);
             }
+            // Игрок 1
             if (p1.y - p1.radius < 257 && p1.y > 200 && p1.x >= 0 && p1.x < 35) {
                 p1.y = 257 + p1.radius;
                 p1.vy = Math.max(Math.abs(p1.vy), 10);
             }
+            // Игрок 2
             if (p2.y - p2.radius < 257 && p2.y > 200 && p2.x >= 0 && p2.x < 35) {
                 p2.y = 257 + p2.radius;
                 p2.vy = Math.max(Math.abs(p2.vy), 10);
             }
 
+            // Левые ворота - нижняя перекладина (y=398)
+            // Мяч
             if (ball.y + ball.radius > 393 && ball.y < 450 && ball.x >= 0 && ball.x < 35) {
                 ball.y = 393 - ball.radius;
                 ball.vy = -Math.max(Math.abs(ball.vy) * 0.8, 3);
             }
+            // Игрок 1
             if (p1.y + p1.radius > 393 && p1.y < 450 && p1.x >= 0 && p1.x < 35) {
                 p1.y = 393 - p1.radius;
                 p1.vy = -Math.max(Math.abs(p1.vy), 10);
             }
+            // Игрок 2
             if (p2.y + p2.radius > 393 && p2.y < 450 && p2.x >= 0 && p2.x < 35) {
                 p2.y = 393 - p2.radius;
                 p2.vy = -Math.max(Math.abs(p2.vy), 10);
             }
 
+            // Правые ворота - верхняя перекладина (y=252)
+            // Мяч
             if (ball.y - ball.radius < 257 && ball.y > 200 && ball.x > 865 && ball.x <= 900) {
                 ball.y = 257 + ball.radius;
                 ball.vy = Math.max(Math.abs(ball.vy) * 0.8, 3);
             }
+            // Игрок 1
             if (p1.y - p1.radius < 257 && p1.y > 200 && p1.x > 865 && p1.x <= 900) {
                 p1.y = 257 + p1.radius;
                 p1.vy = Math.max(Math.abs(p1.vy), 10);
             }
+            // Игрок 2
             if (p2.y - p2.radius < 257 && p2.y > 200 && p2.x > 865 && p2.x <= 900) {
                 p2.y = 257 + p2.radius;
                 p2.vy = Math.max(Math.abs(p2.vy), 10);
             }
 
+            // Правые ворота - нижняя перекладина (y=398)
+            // Мяч
             if (ball.y + ball.radius > 393 && ball.y < 450 && ball.x > 865 && ball.x <= 900) {
                 ball.y = 393 - ball.radius;
                 ball.vy = -Math.max(Math.abs(ball.vy) * 0.8, 3);
             }
+            // Игрок 1
             if (p1.y + p1.radius > 393 && p1.y < 450 && p1.x > 865 && p1.x <= 900) {
                 p1.y = 393 - p1.radius;
                 p1.vy = -Math.max(Math.abs(p1.vy), 10);
             }
+            // Игрок 2
             if (p2.y + p2.radius > 393 && p2.y < 450 && p2.x > 865 && p2.x <= 900) {
                 p2.y = 393 - p2.radius;
                 p2.vy = -Math.max(Math.abs(p2.vy), 10);
@@ -797,6 +843,7 @@
 
         function checkGoal() {
             if (!gameState.isFrozen) {
+                // Левые ворота - гол p2 (красный игрок пропустил)
                 if (ball.x - ball.radius <= 10 && ball.y > 252 && ball.y < 398 && ball.vx < 0) {
                     if (!ball.inGoal) {
                         ball.inGoal = true;
@@ -804,6 +851,7 @@
                         triggerGoal();
                     }
                 }
+                // Правые ворота - гол p1 (синий игрок пропустил)
                 else if (ball.x + ball.radius >= 890 && ball.y > 252 && ball.y < 398 && ball.vx > 0) {
                     if (!ball.inGoal) {
                         ball.inGoal = true;
@@ -811,6 +859,7 @@
                         triggerGoal();
                     }
                 }
+                // Сбросить флаг если мяч вышел из зоны ворот
                 else if (ball.x > 50 && ball.x < 850) {
                     ball.inGoal = false;
                 }
@@ -839,7 +888,7 @@
             p1.x = 155; p1.y = 325; p1.vx = 0; p1.vy = 0;
             p2.x = 745; p2.y = 325; p2.vx = 0; p2.vy = 0;
             ball.x = 450; ball.y = 325; ball.vx = 0; ball.vy = 0;
-            ball.inGoal = false;
+            ball.inGoal = false; // Сбросить флаг гола
 
             if (gameState.playerRole === 'p1') {
                 database.ref(`rooms/${gameState.roomId}`).update({
@@ -848,6 +897,7 @@
                     ball: { x: 450, y: 325, vx: 0, vy: 0, master: 'p1' }
                 });
             } else {
+                // p2 тоже отправляет обновление
                 database.ref(`rooms/${gameState.roomId}`).update({
                     p2: { x: 750, y: 325, vx: 0, vy: 0 }
                 });
@@ -857,29 +907,35 @@
         let lastSyncTime = Date.now();
 
         function drawGoalNets() {
+            // Левые ворота - штанги и сетка
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 4;
             
+            // Левая вертикальная стойка (внешняя, полная)
             ctx.beginPath();
             ctx.moveTo(0, 252);
             ctx.lineTo(0, 398);
             ctx.stroke();
 
+            // Верхняя горизонтальная перекладина
             ctx.beginPath();
             ctx.moveTo(0, 252);
             ctx.lineTo(33, 252);
             ctx.stroke();
 
+            // Правая вертикальная стойка (внутренняя, полная)
             ctx.beginPath();
             ctx.moveTo(33, 252);
             ctx.lineTo(33, 398);
             ctx.stroke();
 
+            // Нижняя горизонтальная перекладина
             ctx.beginPath();
             ctx.moveTo(0, 398);
             ctx.lineTo(33, 398);
             ctx.stroke();
 
+            // Белые точки в углах
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(0, 252, 3, 0, Math.PI * 2);
@@ -894,29 +950,35 @@
             ctx.arc(33, 398, 3, 0, Math.PI * 2);
             ctx.fill();
 
+            // Правые ворота - штанги и сетка
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 4;
             
+            // Левая вертикальная стойка (на границе поля)
             ctx.beginPath();
             ctx.moveTo(867, 252);
             ctx.lineTo(867, 398);
             ctx.stroke();
 
+            // Верхняя горизонтальная перекладина
             ctx.beginPath();
             ctx.moveTo(867, 252);
             ctx.lineTo(900, 252);
             ctx.stroke();
 
+            // Правая вертикальная стойка (внешняя)
             ctx.beginPath();
             ctx.moveTo(900, 252);
             ctx.lineTo(900, 398);
             ctx.stroke();
 
+            // Нижняя горизонтальная перекладина
             ctx.beginPath();
             ctx.moveTo(867, 398);
             ctx.lineTo(900, 398);
             ctx.stroke();
 
+            // Белые точки в углах
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(867, 252, 3, 0, Math.PI * 2);
@@ -931,14 +993,17 @@
             ctx.arc(900, 398, 3, 0, Math.PI * 2);
             ctx.fill();
 
+            // Сетка левых ворот
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.lineWidth = 1;
+            // Вертикальные линии сетки
             for (let x = 4; x < 33; x += 5) {
                 ctx.beginPath();
                 ctx.moveTo(x, 252);
                 ctx.lineTo(x, 398);
                 ctx.stroke();
             }
+            // Горизонтальные линии сетки
             for (let y = 257; y < 398; y += 5) {
                 ctx.beginPath();
                 ctx.moveTo(0, y);
@@ -946,14 +1011,17 @@
                 ctx.stroke();
             }
 
+            // Сетка правых ворот
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.lineWidth = 1;
+            // Вертикальные линии сетки
             for (let x = 871; x < 900; x += 5) {
                 ctx.beginPath();
                 ctx.moveTo(x, 252);
                 ctx.lineTo(x, 398);
                 ctx.stroke();
             }
+            // Горизонтальные линии сетки
             for (let y = 257; y < 398; y += 5) {
                 ctx.beginPath();
                 ctx.moveTo(867, y);
@@ -974,6 +1042,7 @@
 
             drawField();
 
+            // Если игра закончилась, просто рисуем, но не обновляем
             if (gameState.isGameOver) {
                 p1.draw(ctx);
                 p2.draw(ctx);
@@ -1077,6 +1146,7 @@
                     }
                 }
 
+                // Всегда обновляем позиции врага из Firebase (даже при isFrozen для синхронизации после гола)
                 const enemy = gameState.playerRole === 'p1' ? 'p2' : 'p1';
                 const enemyObj = gameState.playerRole === 'p1' ? p2 : p1;
                 if (data[enemy]) {
