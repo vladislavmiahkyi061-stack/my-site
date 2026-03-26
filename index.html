@@ -678,6 +678,7 @@
 
         function handlePlayerInput(player) {
             const acceleration = 100; 
+            const touchAcceleration = acceleration * 6;
             
             if (keys['arrowleft'] || keys['a']) player.vx -= acceleration;
             if (keys['arrowright'] || keys['d']) player.vx += acceleration;
@@ -689,8 +690,8 @@
                 const normalized = Math.min(distance, 150) / 150;
                 const direction = Math.atan2(touchMovement.dy, touchMovement.dx);
                 
-                player.vx += Math.cos(direction) * acceleration * normalized;
-                player.vy += Math.sin(direction) * acceleration * normalized;
+                player.vx += Math.cos(direction) * touchAcceleration * normalized;
+                player.vy += Math.sin(direction) * touchAcceleration * normalized;
             }
             
             const speed = Math.sqrt(player.vx ** 2 + player.vy ** 2);
