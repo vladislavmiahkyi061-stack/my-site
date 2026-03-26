@@ -678,7 +678,7 @@
 
         function handlePlayerInput(player) {
             const acceleration = 100; 
-            const touchAcceleration = acceleration * 6;
+            const touchAcceleration = acceleration * 50;
             
             if (keys['arrowleft'] || keys['a']) player.vx -= acceleration;
             if (keys['arrowright'] || keys['d']) player.vx += acceleration;
