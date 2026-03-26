@@ -610,11 +610,70 @@
         let p2 = new Player(745, 325, '#54a0ff', 'p2');
 
         const keys = {};
+        const touchMovement = { dx: 0, dy: 0, active: false };
+        const touches = {};
+
         window.addEventListener('keydown', (e) => {
             keys[e.key.toLowerCase()] = true;
         });
         window.addEventListener('keyup', (e) => {
             keys[e.key.toLowerCase()] = false;
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            for (let touch of e.touches) {
+                const rect = canvas.getBoundingClientRect();
+                const canvasX = touch.clientX - rect.left;
+                const canvasY = touch.clientY - rect.top;
+                
+                touches[touch.identifier] = { x: canvasX, y: canvasY };
+                touchMovement.active = true;
+            }
+            e.preventDefault();
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (Object.keys(touches).length === 0) return;
+            
+            let totalDx = 0, totalDy = 0;
+            const rect = canvas.getBoundingClientRect();
+            
+            for (let touch of e.touches) {
+                const canvasX = touch.clientX - rect.left;
+                const canvasY = touch.clientY - rect.top;
+                
+                if (touches[touch.identifier]) {
+                    const startX = touches[touch.identifier].x;
+                    const startY = touches[touch.identifier].y;
+                    const dx = canvasX - startX;
+                    const dy = canvasY - startY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > 0) {
+                        totalDx += dx;
+                        totalDy += dy;
+                    }
+                    
+                    touches[touch.identifier] = { x: canvasX, y: canvasY };
+                }
+            }
+            
+            touchMovement.dx = totalDx;
+            touchMovement.dy = totalDy;
+            e.preventDefault();
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            for (let touch of e.changedTouches) {
+                delete touches[touch.identifier];
+            }
+            
+            if (Object.keys(touches).length === 0) {
+                touchMovement.active = false;
+                touchMovement.dx = 0;
+                touchMovement.dy = 0;
+            }
+            e.preventDefault();
         });
 
         function handlePlayerInput(player) {
@@ -624,6 +683,15 @@
             if (keys['arrowright'] || keys['d']) player.vx += acceleration;
             if (keys['arrowup'] || keys['w']) player.vy -= acceleration;
             if (keys['arrowdown'] || keys['s']) player.vy += acceleration;
+            
+            if (touchMovement.active && (touchMovement.dx !== 0 || touchMovement.dy !== 0)) {
+                const distance = Math.sqrt(touchMovement.dx ** 2 + touchMovement.dy ** 2);
+                const normalized = Math.min(distance, 150) / 150;
+                const direction = Math.atan2(touchMovement.dy, touchMovement.dx);
+                
+                player.vx += Math.cos(direction) * acceleration * normalized;
+                player.vy += Math.sin(direction) * acceleration * normalized;
+            }
             
             const speed = Math.sqrt(player.vx ** 2 + player.vy ** 2);
             if (speed > player.maxSpeed) {
