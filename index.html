@@ -1146,7 +1146,7 @@
             drawGoalNets();
 
             const now = Date.now();
-            if (now - lastSyncTime > 50) {
+            if (now - lastSyncTime > 16) {
                 if (gameState.playerRole === 'p1') {
                     database.ref(`rooms/${gameState.roomId}/p1`).set({
                         x: p1.x, y: p1.y, vx: p1.vx, vy: p1.vy
@@ -1160,6 +1160,13 @@
                     });
                 }
                 lastSyncTime = now;
+            }
+            
+            if (gameState.playerRole === 'p2' && gameState.isGameStarted && !gameState.isFrozen) {
+                ball.x += (ballInterpolation.targetX - ball.x) * 0.25;
+                ball.y += (ballInterpolation.targetY - ball.y) * 0.25;
+                ball.vx = ballInterpolation.targetVx;
+                ball.vy = ballInterpolation.targetVy;
             }
 
             requestAnimationFrame(gameLoop);
