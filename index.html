@@ -305,8 +305,8 @@
 
         <div id="lobby">
             <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 20px;">
-                <img src="assets/logo.png" alt="Roboklocki" style="max-width: 225px;">
-                <img src="assets/logo1.png" alt="Logo 1" style="max-width: 75px;">
+                <img src="assets/logo.png" alt="Roboklocki" style="max-width: 225px;" onerror="this.style.display='none'">
+                <img src="assets/logo1.png" alt="Logo 1" style="max-width: 75px;" onerror="this.style.display='none'">
             </div>
             <h1>🏆 ROBOKLOCKI® CUP</h1>
             <p class="subtitle">Piłka Nożna - Dwaj Gracze</p>
@@ -356,6 +356,9 @@
 
         const ballImage = new Image();
         ballImage.src = 'assets/ball.png';
+        ballImage.onerror = () => {
+            console.warn('Не удалось загрузить изображение мяча. Будет использо белый круг.');
+        };
 
         let gameState = {
             isGameStarted: false,
@@ -366,7 +369,8 @@
             gameTimer: 120,
             score: { p1: 0, p2: 0 },
             ballMaster: 'p1',
-            isGoalProcess: false
+            isGoalProcess: false,
+            ballLastUpdate: 0
         };
 
         class Ball {
@@ -483,6 +487,11 @@
                         this.x += separationFactor * nx;
                         this.y += separationFactor * ny;
 
+                        // Логирование для отладки
+                        if (player.role === 'p2') {
+                            console.log('🔵 P2 коллизия с мячом! Дистанция:', dist.toFixed(2), 'Импульс:', impulse.toFixed(2));
+                        }
+
                         this.hasCollided = true;
                         return true;
                     }
@@ -545,7 +554,7 @@
                 // Границы игрового поля
                 if (this.x - this.radius < 0) this.x = this.radius;
                 if (this.x + this.radius > 900) this.x = 900 - this.radius;
-                // Горизонтальные границы (y=50 и y=600) - ОНА срабатывают только от x=33 до x=867
+                // Горизонтальные границы (y=50 и y=600) - они срабатывают только от x=33 до x=867
                 if (this.y - this.radius < 50 && this.x > 33 && this.x < 867) this.y = this.radius + 50;
                 if (this.y + this.radius > 600 && this.x > 33 && this.x < 867) this.y = 600 - this.radius;
 
@@ -938,12 +947,15 @@
         function triggerGoal() {
             gameState.isFrozen = true;
             gameState.isGoalProcess = true;
+            gameState.ballLastUpdate = Date.now();
 
             document.getElementById('scoreP1').innerText = gameState.score.p1;
             document.getElementById('scoreP2').innerText = gameState.score.p2;
 
             if (gameState.playerRole === 'p1') {
-                database.ref(`rooms/${gameState.roomId}/score`).set(gameState.score);
+                database.ref(`rooms/${gameState.roomId}/score`).set(gameState.score).catch(err => {
+                    console.error('Ошибка при обновлении очков:', err);
+                });
             }
 
             setTimeout(() => {
@@ -958,22 +970,21 @@
             p2.x = 745; p2.y = 325; p2.vx = 0; p2.vy = 0;
             ball.x = 450; ball.y = 325; ball.vx = 0; ball.vy = 0;
             ball.inGoal = false; // Сбросить флаг гола
+            gameState.ballLastUpdate = Date.now();
 
-            if (gameState.playerRole === 'p1') {
-                database.ref(`rooms/${gameState.roomId}`).update({
-                    p1: { x: 155, y: 325, vx: 0, vy: 0 },
-                    p2: { x: 745, y: 325, vx: 0, vy: 0 },
-                    ball: { x: 450, y: 325, vx: 0, vy: 0, master: 'p1' }
-                });
-            } else {
-                // p2 тоже отправляет обновление
-                database.ref(`rooms/${gameState.roomId}`).update({
-                    p2: { x: 750, y: 325, vx: 0, vy: 0 }
-                });
-            }
+            const updateData = {
+                p1: { x: 155, y: 325, vx: 0, vy: 0 },
+                p2: { x: 745, y: 325, vx: 0, vy: 0 },
+                ball: { x: 450, y: 325, vx: 0, vy: 0, master: 'p1', t: Date.now(), updatedBy: 'p1' }
+            };
+
+            database.ref(`rooms/${gameState.roomId}`).update(updateData).catch(err => {
+                console.error('Ошибка при сбросе позиций:', err);
+            });
         }
 
         let lastSyncTime = Date.now();
+        gameState.ballLastUpdate = Date.now();
 
         function drawGoalNets() {
             // Левые ворота - штанги и сетка
@@ -1146,27 +1157,43 @@
             drawGoalNets();
 
             const now = Date.now();
-            if (now - lastSyncTime > 16) {
+            if (now - lastSyncTime > 50) {
                 if (gameState.playerRole === 'p1') {
                     database.ref(`rooms/${gameState.roomId}/p1`).set({
                         x: p1.x, y: p1.y, vx: p1.vx, vy: p1.vy
+                    }).catch(err => {
+                        console.error('Ошибка при синхронизации p1:', err);
                     });
-                    database.ref(`rooms/${gameState.roomId}/ball`).set({
-                        x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy
-                    });
+                    // P1 отправляет мяч, но реже чтобы дать P2 время
+                    if (now - gameState.ballLastUpdate > 100) {
+                        database.ref(`rooms/${gameState.roomId}/ball`).set({
+                            x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy,
+                            t: now,
+                            updatedBy: 'p1'
+                        }).catch(err => {
+                            console.error('Ошибка при синхронизации мяча:', err);
+                        });
+                        gameState.ballLastUpdate = now;
+                    }
                 } else {
                     database.ref(`rooms/${gameState.roomId}/p2`).set({
                         x: p2.x, y: p2.y, vx: p2.vx, vy: p2.vy
+                    }).catch(err => {
+                        console.error('Ошибка при синхронизации p2:', err);
                     });
+                    // P2 также отправляет мяч более часто для коллизий
+                    if (now - gameState.ballLastUpdate > 50) {
+                        database.ref(`rooms/${gameState.roomId}/ball`).set({
+                            x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy,
+                            t: now,
+                            updatedBy: 'p2'
+                        }).catch(err => {
+                            console.error('Ошибка при синхронизации мяча от p2:', err);
+                        });
+                        gameState.ballLastUpdate = now;
+                    }
                 }
                 lastSyncTime = now;
-            }
-            
-            if (gameState.playerRole === 'p2' && gameState.isGameStarted && !gameState.isFrozen) {
-                ball.x += (ballInterpolation.targetX - ball.x) * 0.25;
-                ball.y += (ballInterpolation.targetY - ball.y) * 0.25;
-                ball.vx = ballInterpolation.targetVx;
-                ball.vy = ballInterpolation.targetVy;
             }
 
             requestAnimationFrame(gameLoop);
@@ -1177,6 +1204,7 @@
         function join(role) {
             gameState.playerRole = role;
             gameState.roomId = document.getElementById('roomInput').value.trim() || 'WKS';
+            console.log(`🎮 Присоединился как ${role} в комнате ${gameState.roomId}`);
             const roomRef = database.ref(`rooms/${gameState.roomId}`);
 
             if (role === 'p1') {
@@ -1184,13 +1212,38 @@
                     gameState: 'waiting',
                     timeLeft: 120,
                     score: { p1: 0, p2: 0 },
-                    ball: { x: 450, y: 325, vx: 0, vy: 0, master: 'p1' },
+                    ball: { x: 450, y: 325, vx: 0, vy: 0, master: 'p1', t: Date.now(), updatedBy: 'p1' },
                     'connections/p1': true
+                }).catch(err => {
+                    console.error('Ошибка при инициализации комнаты:', err);
+                    document.getElementById('status').innerText = 'Ошибка подключения. Проверьте интернет.';
                 });
             }
 
-            roomRef.child(`connections/${role}`).set(true);
+            roomRef.child(`connections/${role}`).set(true).catch(err => {
+                console.error('Ошибка при установке соединения:', err);
+                document.getElementById('status').innerText = 'Ошибка подключения к серверу';
+            });
             roomRef.child(`connections/${role}`).onDisconnect().remove();
+
+            // Для p2 - отдельный слушатель для мяча с приоритетом на временные метки
+            if (role === 'p2') {
+                roomRef.child('ball').on('value', (snap) => {
+                    const ballData = snap.val();
+                    if (ballData && !gameState.isFrozen) {
+                        // Используем метку времени для определения приоритета
+                        // Если это старое обновление, не перезаписываем локальное состояние
+                        if (ballData.t && ballData.t > gameState.ballLastUpdate) {
+                            console.log(`🔄 P2 получил обновление мяча от ${ballData.updatedBy || 'unknown'}:`, ballData.x.toFixed(1), ballData.y.toFixed(1));
+                            ball.x = ballData.x;
+                            ball.y = ballData.y;
+                            ball.vx = ballData.vx || 0;
+                            ball.vy = ballData.vy || 0;
+                            gameState.ballLastUpdate = ballData.t;
+                        }
+                    }
+                });
+            }
 
             roomRef.on('value', (snap) => {
                 const data = snap.val();
@@ -1198,6 +1251,7 @@
 
                 if (data.connections?.p1 && data.connections?.p2 && !gameState.isGameStarted) {
                     gameState.isGameStarted = true;
+                    gameState.ballLastUpdate = Date.now();
                     document.getElementById('lobby').style.display = 'none';
                     document.getElementById('connectionStatus').innerHTML = 
                         '<span class="status-dot status-connected"></span><span>Połączono</span>';
@@ -1234,6 +1288,18 @@
 
                 if (!gameState.isFrozen) {
                     if (data.ball && gameState.playerRole !== 'p1') {
+                        // Используем временную метку для приоритета
+                        if (data.ball.t && data.ball.t > gameState.ballLastUpdate) {
+                            ball.x = data.ball.x;
+                            ball.y = data.ball.y;
+                            ball.vx = data.ball.vx || 0;
+                            ball.vy = data.ball.vy || 0;
+                            gameState.ballLastUpdate = data.ball.t;
+                        }
+                    }
+                } else {
+                    // Даже при isFrozen синхронизируем мяч для корректного отображения и коллизий
+                    if (data.ball) {
                         ball.x = data.ball.x;
                         ball.y = data.ball.y;
                         ball.vx = data.ball.vx || 0;
@@ -1244,6 +1310,15 @@
 
             document.getElementById('status').innerText = 'Czekanie na drugiego gracza...';
         }
+
+        // Обработка ошибок подключения Firebase
+        database.ref('.info/connected').on('value', function(connectedSnap) {
+            if (connectedSnap.val() === true) {
+                console.log('Подключено к Firebase');
+            } else {
+                console.warn('Отключено от Firebase');
+            }
+        });
 
         function endGame() {
             gameState.isGameOver = true;
@@ -1269,7 +1344,9 @@
         setInterval(() => {
             if (gameState.isGameStarted && !gameState.isGameOver && gameState.playerRole === 'p1') {
                 gameState.gameTimer--;
-                database.ref(`rooms/${gameState.roomId}/timeLeft`).set(gameState.gameTimer);
+                database.ref(`rooms/${gameState.roomId}/timeLeft`).set(gameState.gameTimer).catch(err => {
+                    console.error('Ошибка при обновлении таймера:', err);
+                });
             }
         }, 1000);
     </script>
